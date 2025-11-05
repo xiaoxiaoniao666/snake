@@ -252,7 +252,10 @@
     <div class="game-over" id="gameOver">
         <h2>游戏结束！</h2>
         <p>您的分数: <span id="finalScore">0</span></p>
-        <button onclick="restartGame()">再玩一次</button>
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="restartGame()">再玩一次</button>
+            <button onclick="closeGameOver()" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">返回主界面</button>
+        </div>
     </div>
 
     <script>
@@ -455,6 +458,18 @@
         function restartGame() {
             gameOverElement.classList.remove('show');
             startGame();
+        }
+
+        function closeGameOver() {
+            gameOverElement.classList.remove('show');
+            // 重置游戏状态但不自动开始
+            snake = [{x: 10, y: 10}];
+            dx = 0;
+            dy = 0;
+            score = 0;
+            scoreElement.textContent = score;
+            generateFood();
+            draw();
         }
 
         function changeDirection(direction) {
