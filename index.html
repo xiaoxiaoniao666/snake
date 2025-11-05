@@ -19,6 +19,7 @@
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            overflow-x: hidden;
         }
 
         .game-container {
@@ -27,6 +28,9 @@
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             text-align: center;
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         h1 {
@@ -67,6 +71,9 @@
             display: block;
             margin: 0 auto 20px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+            height: auto;
+            touch-action: none;
         }
 
         .controls {
@@ -317,18 +324,163 @@
         }
 
         @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+
             h1 {
-                font-size: 1.8em;
+                font-size: 1.5em;
+                margin-bottom: 15px;
             }
             
             .game-info {
-                flex-direction: column;
-                gap: 10px;
+                flex-direction: row;
+                gap: 8px;
+                margin-bottom: 15px;
             }
             
             .info-box {
-                padding: 10px 20px;
+                padding: 8px 12px;
+                font-size: 0.85em;
+                flex: 1;
+                min-width: 0;
+            }
+
+            canvas {
+                border-width: 3px;
+                border-radius: 8px;
+                margin-bottom: 15px;
+            }
+
+            .speed-control {
+                flex-direction: column;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .speed-control label {
+                font-size: 0.9em;
+            }
+
+            .speed-control select {
+                padding: 6px 12px;
+                font-size: 0.9em;
+                width: 100%;
+            }
+
+            button {
+                padding: 12px 30px;
                 font-size: 1em;
+            }
+
+            .direction-pad {
+                grid-template-columns: repeat(3, 50px);
+                grid-template-rows: repeat(3, 50px);
+                gap: 8px;
+            }
+
+            .direction-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+
+            .instructions {
+                font-size: 0.8em;
+                padding: 12px;
+                margin-top: 15px;
+            }
+
+            .leaderboard {
+                padding: 20px;
+                width: 95%;
+                max-height: 85vh;
+            }
+
+            .leaderboard h2 {
+                font-size: 1.5em;
+                margin-bottom: 15px;
+            }
+
+            .leaderboard-item {
+                padding: 10px 12px;
+                margin-bottom: 8px;
+                font-size: 0.9em;
+            }
+
+            .leaderboard-rank {
+                font-size: 1.2em;
+                min-width: 30px;
+            }
+
+            .leaderboard-name {
+                font-size: 0.95em;
+                margin: 0 10px;
+            }
+
+            .leaderboard-score {
+                font-size: 1.1em;
+            }
+
+            .leaderboard-date {
+                font-size: 0.75em;
+            }
+
+            .game-over {
+                padding: 25px;
+                width: 90%;
+            }
+
+            .game-over h2 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+
+            .game-over p {
+                font-size: 1.1em;
+                margin-bottom: 20px;
+            }
+
+            #playerName {
+                padding: 8px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 450px) {
+            h1 {
+                font-size: 1.3em;
+            }
+
+            .info-box {
+                padding: 6px 10px;
+                font-size: 0.75em;
+            }
+
+            .game-container {
+                padding: 10px;
+            }
+
+            .direction-pad {
+                grid-template-columns: repeat(3, 45px);
+                grid-template-rows: repeat(3, 45px);
+                gap: 6px;
+            }
+
+            .direction-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1em;
+            }
+
+            button {
+                padding: 10px 25px;
+                font-size: 0.95em;
             }
         }
     </style>
@@ -432,6 +584,65 @@
         let gameLoop;
         let gameSpeed = 150;
 
+        // 响应式Canvas尺寸调整
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(400, container.clientWidth - 40);
+            const size = Math.floor(maxWidth / gridSize) * gridSize;
+            
+            if (canvas.width !== size) {
+                canvas.width = size;
+                canvas.height = size;
+                draw();
+            }
+        }
+
+        // 初始化和监听窗口大小变化
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 防止页面滚动和缩放
+        document.addEventListener('touchmove', function(e) {
+            if (e.target === canvas) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // 添加触摸滑动控制
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', function(e) {
+            if (!gameRunning) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                // 水平滑动
+                if (diffX > 30) {
+                    changeDirection('RIGHT');
+                } else if (diffX < -30) {
+                    changeDirection('LEFT');
+                }
+            } else {
+                // 垂直滑动
+                if (diffY > 30) {
+                    changeDirection('DOWN');
+                } else if (diffY < -30) {
+                    changeDirection('UP');
+                }
+            }
+        }, { passive: true });
+
         // 加载最高分
         if (localStorage.getItem('snakeHighScore')) {
             highScore = parseInt(localStorage.getItem('snakeHighScore'));
@@ -497,6 +708,8 @@
 
         // 绘制游戏
         function draw() {
+            const currentTileCount = canvas.width / gridSize;
+            
             // 清空画布
             ctx.fillStyle = '#f0f0f0';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -504,7 +717,7 @@
             // 绘制网格
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
-            for (let i = 0; i <= tileCount; i++) {
+            for (let i = 0; i <= currentTileCount; i++) {
                 ctx.beginPath();
                 ctx.moveTo(i * gridSize, 0);
                 ctx.lineTo(i * gridSize, canvas.height);
@@ -520,8 +733,8 @@
                 const head = {x: snake[0].x + dx, y: snake[0].y + dy};
 
                 // 检查碰撞
-                if (head.x < 0 || head.x >= tileCount || 
-                    head.y < 0 || head.y >= tileCount || 
+                if (head.x < 0 || head.x >= currentTileCount || 
+                    head.y < 0 || head.y >= currentTileCount || 
                     checkCollision(head)) {
                     endGame();
                     return;
@@ -608,11 +821,12 @@
         }
 
         function generateFood() {
+            const currentTileCount = canvas.width / gridSize;
             let newFood;
             do {
                 newFood = {
-                    x: Math.floor(Math.random() * tileCount),
-                    y: Math.floor(Math.random() * tileCount)
+                    x: Math.floor(Math.random() * currentTileCount),
+                    y: Math.floor(Math.random() * currentTileCount)
                 };
             } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
             food = newFood;
